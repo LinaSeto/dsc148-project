@@ -41,11 +41,11 @@ All steps are in the notebook `dsc148_project_notebook.ipynb` and should be run 
 | 6. Train | Logistic Regression baseline + proposed CatBoost, each within a leakage-safe pipeline |
 | 7. Calibrate | Sigmoid scaling fit on the calibration split |
 | 8. Evaluate | ROC/PR curves, Brier/ECE, threshold analysis, calibration curve, SHAP |
-| 9. Demo export | Writes `demo/index.html`, a self-contained browser demo |
+| 9. Demo export | Writes `docs/index.html`, a self-contained browser demo |
 
 ## Interactive Demo
 
-Open `demo/index.html` in a browser to view the interactive demo built with a simpler model than the full model evaluated here. 
+Open `docs/index.html` in a browser to view the interactive demo built with a simpler model than the full model evaluated here. 
 
 It is also accessable through a shareable link through enabling GitHub Pages in repository settings. 
 

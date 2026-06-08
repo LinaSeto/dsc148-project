@@ -1,0 +1,72 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo: ICU Mortality Risk Prediction</title><style>
+:root{--bg:#f7f7f5;--card:#fff;--ink:#1f2328;--muted:#6b7280;--line:#e5e7eb;--accent:#4C72B0;}
+*{box-sizing:border-box;}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;}
+.wrap{max-width:860px;margin:0 auto;padding:24px 16px 60px;}h1{font-size:22px;margin:0 0 4px;}
+.sub{color:var(--muted);margin:0 0 16px;}
+.disc{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:10px 14px;border-radius:8px;font-size:14px;margin-bottom:18px;}
+.banner{position:sticky;top:0;z-index:5;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin-bottom:18px;display:flex;align-items:center;gap:28px;flex-wrap:wrap;}
+.banner .rl{font-size:13px;color:var(--muted);}.banner .pct{font-size:44px;font-weight:600;line-height:1;margin-top:2px;}
+.b-right{flex:1;min-width:200px;}.bar{height:12px;border-radius:999px;background:#eee;overflow:hidden;margin-bottom:6px;}.bar>div{height:100%;transition:width .25s,background .25s;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:18px;}
+.preset-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;}.preset-label{font-size:13px;color:var(--muted);}
+.presets{display:flex;gap:8px;flex-wrap:wrap;}.presets button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px;font-size:14px;cursor:pointer;}
+.presets button:hover{border-color:var(--accent);color:var(--accent);}.preset-hint{font-size:12px;color:var(--muted);margin:0 0 16px;}
+.section{margin-bottom:18px;}.section:last-child{margin-bottom:0;}.section h3{font-size:13px;font-weight:600;color:var(--accent);margin:0 0 10px;}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px 16px;}
+.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px;}
+.field input[type=number],.field select{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:#fff;}
+.field.binary{display:flex;align-items:center;gap:8px;}.field.binary label{margin:0;font-size:14px;color:var(--ink);}
+.perf p{margin:6px 0;font-size:14px;}.perf .muted{color:var(--muted);font-size:13px;}
+</style></head><body><div class="wrap">
+<h1>ICU In-Hospital Mortality — An Educational Demo</h1>
+<p class="sub">A simplified, calibrated model. Pick an example patient or adjust the inputs.</p>
+<div class="disc"><b>Educational use only, not for clinical use.</b> This is a simplified illustrative model; do not use it for real medical decisions. Privacy protection: all computation runs in your browser, so no data is sent anywhere.</div>
+<div class="banner"><div><div class="rl">Estimated in-hospital mortality risk</div><div class="pct" id="pct">-</div></div>
+<div class="b-right"><div class="bar"><div id="bf"></div></div><div class="rl" id="rw"></div></div></div>
+<div class="card"><div class="preset-row"><span class="preset-label">Try an example patient:</span><div class="presets" id="presets"></div></div>
+<p class="preset-hint">These fill the form with a sample patient. Then, adjust any field to see the risk change.</p>
+<div id="fields"></div></div>
+<div class="card perf"><h3 style="color:var(--accent);font-size:13px;margin:0 0 8px;">About this model</h3>
+<p>Performance on a held-out test set: ROC-AUC <b id="m_auc"></b> &middot; PR-AUC <b id="m_pr"></b> &middot; Brier <b id="m_brier"></b> (n = <span id="m_n"></span>).</p>
+<p class="muted">This logistic regression model is deliberately simplified and browser-friendly using 15 plain inputs. The full model, gradient-boosted trees on the complete feature set, scores higher, around ROC-AUC 0.90.</p></div>
+</div><script>
+const MODEL={"numeric_features": ["age", "bmi", "d1_heartrate_max", "d1_heartrate_min", "d1_sysbp_min", "d1_spo2_min", "d1_temp_max", "d1_resprate_max", "d1_glucose_max", "ventilated_apache", "intubated_apache", "elective_surgery"], "categorical_features": ["gender", "icu_type", "icu_admit_source"], "coef": {"age": 0.5339135656154883, "bmi": -0.10059195463205697, "d1_heartrate_max": 0.20961907183796827, "d1_heartrate_min": 0.19216831967968576, "d1_sysbp_min": -0.41978892361488795, "d1_spo2_min": -0.2726260007738851, "d1_temp_max": -0.12890497466769044, "d1_resprate_max": 0.12137927178937641, "d1_glucose_max": 0.1333428131765352, "ventilated_apache": 0.6256121469275986, "intubated_apache": 0.15163404927017704, "elective_surgery": -0.34688990310280526, "gender=F": -0.16989502310743435, "gender=M": -0.09806928962800784, "icu_type=CCU-CTICU": -0.11837628007316726, "icu_type=CSICU": -0.5439333746797196, "icu_type=CTICU": -0.1921392918164497, "icu_type=Cardiac ICU": 0.058994442005213275, "icu_type=MICU": 0.1010868511077843, "icu_type=Med-Surg ICU": -0.06274339578103495, "icu_type=Neuro ICU": 0.3579155900453337, "icu_type=SICU": 0.13123114645659412, "icu_admit_source=Accident & Emergency": -0.2552159689473374, "icu_admit_source=Floor": 0.06840520821809984, "icu_admit_source=Operating Room / Recovery": -0.7368025965887417, "icu_admit_source=Other Hospital": 0.19469833173842963, "icu_admit_source=Other ICU": 0.46095071284409517}, "intercept": -0.2722703988641232, "platt": {"a": 0.9902963170270114, "b": -2.366800552224743}, "stats": {"numeric": {"age": {"median": 65.0, "mean": 62.46815199811002, "std": 16.39186988502698}, "bmi": {"median": 27.66547496, "mean": 29.116377183185527, "std": 8.107351589365225}, "d1_heartrate_max": {"median": 101.0, "mean": 102.99925491122539, "std": 21.926267840483934}, "d1_heartrate_min": {"median": 70.0, "mean": 70.82395914732767, "std": 16.094459165275985}, "d1_sysbp_min": {"median": 96.0, "mean": 96.92300143565886, "std": 20.644962925276932}, "d1_spo2_min": {"median": 92.0, "mean": 90.59334508514002, "std": 9.392037065905038}, "d1_temp_max": {"median": 37.11, "mean": 37.282756852615805, "std": 0.6846576744370979}, "d1_resprate_max": {"median": 26.0, "mean": 28.865029894415468, "std": 10.640351099099885}, "d1_glucose_max": {"median": 151.0, "mean": 173.5297944645356, "std": 84.37598472693854}, "ventilated_apache": {"median": 0.0, "mean": 0.32309593472295417, "std": 0.4676632616138691}, "intubated_apache": {"median": 0.0, "mean": 0.150762353026696, "std": 0.35782033579800643}, "elective_surgery": {"median": 0.0, "mean": 0.18278299743762152, "std": 0.38649202822506384}}, "categorical": {"gender": {"categories": ["F", "M"], "mode": "M"}, "icu_type": {"categories": ["CCU-CTICU", "CSICU", "CTICU", "Cardiac ICU", "MICU", "Med-Surg ICU", "Neuro ICU", "SICU"], "mode": "Med-Surg ICU"}, "icu_admit_source": {"categories": ["Accident & Emergency", "Floor", "Operating Room / Recovery", "Other Hospital", "Other ICU"], "mode": "Accident & Emergency"}}}, "groups": [{"id": "background", "label": "Patient background"}, {"id": "vitals", "label": "Vital signs & labs"}, {"id": "status", "label": "Treatment & status"}, {"id": "admission", "label": "Admission"}], "fields": [{"key": "age", "label": "Age (years)", "type": "number", "group": "background"}, {"key": "bmi", "label": "BMI", "type": "number", "group": "background"}, {"key": "gender", "label": "Sex", "type": "category", "group": "background"}, {"key": "d1_heartrate_max", "label": "Highest heart rate (bpm)", "type": "number", "group": "vitals"}, {"key": "d1_heartrate_min", "label": "Lowest heart rate (bpm)", "type": "number", "group": "vitals"}, {"key": "d1_sysbp_min", "label": "Lowest systolic BP (mmHg)", "type": "number", "group": "vitals"}, {"key": "d1_spo2_min", "label": "Lowest oxygen, SpO2 (%)", "type": "number", "group": "vitals"}, {"key": "d1_temp_max", "label": "Highest temperature (\u00baC)", "type": "number", "group": "vitals"}, {"key": "d1_resprate_max", "label": "Highest breathing rate (/min)", "type": "number", "group": "vitals"}, {"key": "d1_glucose_max", "label": "Highest blood sugar (mg/dL)", "type": "number", "group": "vitals"}, {"key": "ventilated_apache", "label": "On a ventilator", "type": "binary", "group": "status"}, {"key": "intubated_apache", "label": "Has a breathing tube", "type": "binary", "group": "status"}, {"key": "elective_surgery", "label": "Planned (elective) surgery", "type": "binary", "group": "status"}, {"key": "icu_type", "label": "ICU type", "type": "category", "group": "admission"}, {"key": "icu_admit_source", "label": "Came to ICU from", "type": "category", "group": "admission"}], "defaults": {"age": 65.0, "bmi": 27.67, "d1_heartrate_max": 101.0, "d1_heartrate_min": 70.0, "d1_sysbp_min": 96.0, "d1_spo2_min": 92.0, "d1_temp_max": 37.11, "d1_resprate_max": 26.0, "d1_glucose_max": 151.0, "ventilated_apache": 0, "intubated_apache": 0, "elective_surgery": 0, "gender": "M", "icu_type": "Med-Surg ICU", "icu_admit_source": "Accident & Emergency"}, "presets": {"Lower risk": {"age": 45, "bmi": 24, "d1_heartrate_max": 92, "d1_heartrate_min": 64, "d1_sysbp_min": 116, "d1_spo2_min": 97, "d1_temp_max": 37.0, "d1_resprate_max": 16, "d1_glucose_max": 110, "ventilated_apache": 0, "intubated_apache": 0, "elective_surgery": 1}, "Typical": {}, "Higher risk": {"age": 78, "bmi": 31, "d1_heartrate_max": 132, "d1_heartrate_min": 48, "d1_sysbp_min": 76, "d1_spo2_min": 84, "d1_temp_max": 38.8, "d1_resprate_max": 30, "d1_glucose_max": 245, "ventilated_apache": 1, "intubated_apache": 1, "elective_surgery": 0}}, "performance": {"roc_auc": 0.836, "pr_auc": 0.377, "brier": 0.065, "n_test": 18343}};let state=Object.assign({},MODEL.defaults);
+function sig(z){return 1/(1+Math.exp(-z));}
+function predict(v){let L=MODEL.intercept;
+ for(const f of MODEL.numeric_features){const s=MODEL.stats.numeric[f];
+  const x=(v[f]===""||v[f]==null)?s.median:Number(v[f]);L+=(MODEL.coef[f]||0)*(x-s.mean)/s.std;}
+ for(const c of MODEL.categorical_features){for(const cat of MODEL.stats.categorical[c].categories){
+  L+=(MODEL.coef[c+"="+cat]||0)*(v[c]===cat?1:0);}}
+ return sig(MODEL.platt.a*L+MODEL.platt.b);}
+function render(){const p=predict(state);document.getElementById('pct').textContent=(p*100).toFixed(1)+'%';
+ const bf=document.getElementById('bf');bf.style.width=Math.min(100,p*120)+'%';
+ bf.style.background=p<0.1?'#4C72B0':(p<0.3?'#DD8452':'#C44E52');
+ document.getElementById('rw').textContent=p<0.1?'lower than typical':(p<0.3?'elevated':'high');}
+function setVal(k,x){state[k]=x;render();}
+function fieldEl(f){const w=document.createElement('div');
+ if(f.type==='binary'){w.className='field binary';
+  w.innerHTML='<input type="checkbox" id="'+f.key+'"><label for="'+f.key+'">'+f.label+'</label>';
+  const cb=w.querySelector('input');cb.checked=!!state[f.key];cb.onchange=()=>setVal(f.key,cb.checked?1:0);}
+ else if(f.type==='category'){w.className='field';
+  const o=MODEL.stats.categorical[f.key].categories.map(c=>'<option>'+c+'</option>').join('');
+  w.innerHTML='<label>'+f.label+'</label><select>'+o+'</select>';
+  const s=w.querySelector('select');s.value=state[f.key];s.onchange=()=>setVal(f.key,s.value);}
+ else{w.className='field';w.innerHTML='<label>'+f.label+'</label><input type="number" value="'+state[f.key]+'">';
+  const i=w.querySelector('input');i.oninput=()=>setVal(f.key,i.value);}
+ return w;}
+function buildForm(){const fc=document.getElementById('fields');fc.innerHTML='';
+ for(const g of MODEL.groups){const sec=document.createElement('div');sec.className='section';
+  const h=document.createElement('h3');h.textContent=g.label;sec.appendChild(h);
+  const grid=document.createElement('div');grid.className='fgrid';
+  for(const f of MODEL.fields.filter(x=>x.group===g.id)) grid.appendChild(fieldEl(f));
+  sec.appendChild(grid);fc.appendChild(sec);}}
+function buildPresets(){const pc=document.getElementById('presets');
+ for(const n of Object.keys(MODEL.presets)){const b=document.createElement('button');b.textContent=n;
+  b.onclick=()=>{state=Object.assign({},MODEL.defaults,MODEL.presets[n]);buildForm();render();};pc.appendChild(b);}}
+function showPerf(){const p=MODEL.performance;document.getElementById('m_auc').textContent=p.roc_auc;
+ document.getElementById('m_pr').textContent=p.pr_auc;document.getElementById('m_brier').textContent=p.brier;
+ document.getElementById('m_n').textContent=p.n_test.toLocaleString();}
+buildPresets();buildForm();showPerf();render();
+</script></body></html>
